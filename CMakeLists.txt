@@ -4,11 +4,15 @@ project(MatrixC++ VERSION 0.1.0 LANGUAGES C CXX)
 include(CTest)
 enable_testing()
 
-#add_library(MatrixC++)
+add_library(MatrixC++ INTERFACE)
 
-#add_subdirectory(include)
-#add_subdirectory(src)
-#add_subdirectory(test)
+add_subdirectory(src)
+add_subdirectory(test)
+
+target_include_directories(MatrixC++ INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
