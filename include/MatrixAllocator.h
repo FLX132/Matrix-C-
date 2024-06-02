@@ -16,15 +16,16 @@ class MatrixAllocator {
 
     template <class U>
     struct rebind {
-        typedef allocator<U> other;
+        typedef MatrixAllocator<U> other;
     };
 
    public:
-    MatrixAllocator() noexcept;
-    MatrixAllocator(const MatrixAllocator &other) noexcept;
+    MatrixAllocator() noexcept = default;
+    MatrixAllocator(const MatrixAllocator &other) noexcept = default;
+
     template <class U>
-    MatrixAllocator(const MatrixAllocator<U> &other) noexcept;
-    ~MatrixAllocator();
+    MatrixAllocator(const MatrixAllocator<U> &other) noexcept = default;
+    ~MatrixAllocator() = default;
 
     pointer address(reference x) const noexcept;
     const_pointer address(const_reference x) const noexcept;
