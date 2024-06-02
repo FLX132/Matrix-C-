@@ -1,6 +1,6 @@
 ---
 # options: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
-BasedOnStyle: Google  
+BasedOnStyle: Google
 IndentWidth: 4
 # Must be 80 characters or less!
 ColumnLimit: 80
@@ -14,9 +14,11 @@ AllowShortIfStatementsOnASingleLine: false
 AlignTrailingComments: true
 SpacesBeforeTrailingComments: 3
 # change the next line to All for Alistair's textbook style
-AlwaysBreakAfterReturnType: TopLevelDefinitions
+AlwaysBreakAfterReturnType: None
 #  #define SHORT_NAME       42
 #  #define LONGER_NAME      0x007f   # does nice spacing for macros
 AlignConsecutiveMacros: Consecutive
 # use \n instead of \r\n
 UseCRLF: false
+BracketAlignmentStyle: BAS_Align
+PenaltyReturnTypeOnItsOwnLine: 1000000
