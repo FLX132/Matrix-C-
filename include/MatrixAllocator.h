@@ -2,6 +2,8 @@
 #include <memory>
 #include <type_traits>
 
+#include "MatrixAllocatorStorage.h"
+
 template <typename T>
 class MatrixAllocator {
     using value_type = T;
@@ -19,15 +21,19 @@ class MatrixAllocator {
         typedef MatrixAllocator<U> other;
     };
 
+   private:
+    MatrixAllocatorStorage<T> *firstAllocatedStorage;
+
    public:
     MatrixAllocator() noexcept = default;
     MatrixAllocator(const MatrixAllocator &other) noexcept = default;
 
     template <class U>
-    MatrixAllocator(const MatrixAllocator<U> &other) noexcept = default;
+    MatrixAllocator(const MatrixAllocator<U> &other) noexcept;
     ~MatrixAllocator() = default;
 
     pointer address(reference x) const noexcept;
+
     const_pointer address(const_reference x) const noexcept;
 
     pointer allocate(size_type n, const void *hint = 0);
@@ -43,8 +49,66 @@ class MatrixAllocator {
     void destroy(U *p);
 };
 
-template <class T1, class T2>
-bool operator==(const allocator<T1> &lhs, const allocator<T2> &rhs) noexcept;
+template <typename T>
+template <class U>
+MatrixAllocator<T>::MatrixAllocator(const MatrixAllocator<U> &other) noexcept {
+    /// TODO: (felix)
+}
+
+template <typename T>
+typename MatrixAllocator<T>::pointer MatrixAllocator<T>::address(
+    reference x) const noexcept {
+    return std::addressof(x);
+}
+
+template <typename T>
+typename MatrixAllocator<T>::const_pointer MatrixAllocator<T>::address(
+    const_reference x) const noexcept {
+    return std::addressof(x);
+}
+
+template <typename T>
+typename MatrixAllocator<T>::pointer MatrixAllocator<T>::allocate(
+    size_type n, const void *hint) {
+    if (firstAllocatedStorage == nullptr) {
+        firstAllocatedStorage = new MatrixAllocatorStorage<T>(n);
+        return firstAllocatedStorage->allocatedArea;
+    } else {
+        return firstAllocatedStorage->allocateArea(n, hint);
+    }
+}
+
+template <typename T>
+void MatrixAllocator<T>::deallocate(T *p, std::size_t n) {
+    if (firstAllocatedStorage != nullptr) {
+        firstAllocatedStorage->deallocateArea(p, n);
+    }
+}
+
+template <typename T>
+typename MatrixAllocator<T>::size_type MatrixAllocator<T>::max_size()
+    const noexcept {
+    return std::numeric_limits<size_type>::max() / sizeof(value_type);
+}
+
+template <typename T>
+template <class U, class... Args>
+void MatrixAllocator<T>::construct(U *p, Args &&...args) {   /// TODO
+}
+
+template <typename T>
+template <class U>
+void MatrixAllocator<T>::destroy(U *p) {   /// TODO
+}
 
 template <class T1, class T2>
-bool operator!=(const allocator<T1> &lhs, const allocator<T2> &rhs) noexcept;
+bool operator==(const MatrixAllocator<T1> &lhs,
+                const MatrixAllocator<T2> &rhs) noexcept {
+    return true;
+}
+
+template <class T1, class T2>
+bool operator!=(const MatrixAllocator<T1> &lhs,
+                const MatrixAllocator<T2> &rhs) noexcept {
+    return true;
+}
