@@ -8,7 +8,8 @@ class MatrixAllocatorStorage {
    private:
     storagePointer nextAllocatedArea;
     pointer allocatedArea;
-    size_t allocatedSize;
+    size_t maxAllocatedSize;
+    size_t currentAllocatedElements;
 
    public:
     MatrixAllocatorStorage() = delete;
@@ -18,11 +19,11 @@ class MatrixAllocatorStorage {
     MatrixAllocatorStorage(size_t);
     MatrixAllocatorStorage(MatrixAllocatorStorage &&) = default;
     MatrixAllocatorStorage &operator=(MatrixAllocatorStorage &&) = default;
-    allocateArea(size_t n, const void *hint = 0);
+    T *allocateArea(size_t n, const void *hint = 0);
     T *getPointerToArea();
-    storagePointer *getPointerToNext();
+    storagePointer getPointerToNext();
     T *GetSizeOfNext();
-    deallocateArea(T *p, size_t n);
+    void deallocateArea(T *p, size_t n);
 
     template <class U, class... Args>
     void constructInArea(U *p, Args &&...args);
@@ -36,52 +37,90 @@ MatrixAllocatorStorage<T>::MatrixAllocatorStorage(
     size_t requestedAllocationSpace) {
     allocatedArea = new T[requestedAllocationSpace];
     nextAllocatedArea = nullptr;
-    allocatedSize = requestedAllocationSpace;
+    maxAllocatedSize = requestedAllocationSpace;
+    currentAllocatedElements = 0;
 }
 
 template <typename T>
-T *MatrixAllocatorStorage<T>::allocateArea(size_t n, const void *hint = 0) {
-    nextAllocatedArea = new MatrixAllocatorStorage<T>(n);
-    return nextAllocatedArea->allocatedArea;
+T *MatrixAllocatorStorage<T>::allocateArea(size_t n, const void *hint) {
+    if (nextAllocatedArea == nullptr) {
+        nextAllocatedArea = new MatrixAllocatorStorage<T>(n);
+        return nextAllocatedArea->allocatedArea;
+    } else {
+        nextAllocatedArea->allocatedArea(n, hint);
+    }
 }
 
 template <typename T>
 void MatrixAllocatorStorage<T>::deallocateArea(T *p, size_t n) {
-    if (p == nextAllocatedArea) {
-        storagePointer temporaryNextAllocatedArea =
-            nextAllocatedArea->getPointerToNext();
-        pointer temporaryNextArea = nextAllocatedArea->getPointerToArea();
-        // n == nextAllocatedArea->GetSizeOfNext() needs to be true to free the
-        // occupied memory
-        if (temporaryNextArea != nullptr) {
-            delete[] temporaryNextArea;
-            delete[] nextAllocatedArea;
-            nextAllocatedArea = temporaryNextAllocatedArea;
+    if (nextAllocatedArea != nullptr) {
+        if (p == nextAllocatedArea && n == nextAllocatedArea->GetSizeOfNext()) {
+            storagePointer temporaryNextAllocatedArea =
+                nextAllocatedArea->getPointerToNext();
+            pointer temporaryNextArea = nextAllocatedArea->getPointerToArea();
+            if (temporaryNextArea != nullptr) {
+                delete[] temporaryNextArea;
+                delete nextAllocatedArea;
+                nextAllocatedArea = temporaryNextAllocatedArea;
+            }
+        } else {
+            nextAllocatedArea->deallocateArea(p, n);
         }
-    } else {
-        nextAllocatedArea->deallocateArea(p, n);
     }
 }
 
 template <typename T>
 template <class U, class... Args>
-void MatrixAllocatorStorage<T>::constructInArea(U *p, Args &&...args);
+void MatrixAllocatorStorage<T>::constructInArea(U *p, Args &&...args) {
+    auto allocatedElementsBeforeConstruct = currentAllocatedElements;
+    if (currentAllocatedElements < maxAllocatedSize) {
+        for (auto elementPtr : allocateArea) {
+            if (elementPtr == p) {
+                ::new ((void *) p) U(std::forward<Args>(args)...);
+                currentAllocatedElements++;
+                break;
+            }
+        }
+    }
+
+    if (allocatedElementsBeforeConstruct == currentAllocatedElements &&
+        nextAllocatedArea != nullptr) {
+        nextAllocatedArea->constructInArea(p, args...);
+    }
+}
 
 template <typename T>
 template <class U>
-void MatrixAllocatorStorage<T>::destroyInArea(U *p);
+void MatrixAllocatorStorage<T>::destroyInArea(U *p) {
+    auto allocatedElementsBeforeConstruct = currentAllocatedElements;
+    if (currentAllocatedElements < maxAllocatedSize) {
+        for (auto elementPtr : allocateArea) {
+            if (elementPtr == p) {
+                p->~U();
+                currentAllocatedElements--;
+                break;
+            }
+        }
+    }
+
+    if (allocatedElementsBeforeConstruct == currentAllocatedElements &&
+        nextAllocatedArea != nullptr) {
+        nextAllocatedArea->destroyInArea(p);
+    }
+}
 
 template <typename T>
-T *getPointerToArea() {
+T *MatrixAllocatorStorage<T>::getPointerToArea() {
     return allocatedArea;
 }
 
 template <typename T>
-T *getPointerToNext() {
+typename MatrixAllocatorStorage<T>::storagePointer MatrixAllocatorStorage<
+    T>::getPointerToNext() {
     return nextAllocatedArea;
 }
 
 template <typename T>
-T *GetSizeOfNext() {
-    return allocatedSize;
+T *MatrixAllocatorStorage<T>::GetSizeOfNext() {
+    return maxAllocatedSize;
 }
